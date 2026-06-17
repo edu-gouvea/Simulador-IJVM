@@ -1,0 +1,12 @@
+# registradores_etapa2.txt
+# Formato: NOME=VALOR (decimal)
+H=10
+OPC=0
+TOS=7
+CPP=0
+LV=2
+SP=3
+PC=0
+MDR=20
+MAR=0
+MBR=0
