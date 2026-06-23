@@ -505,11 +505,12 @@ ULA_B       = '00001100'   # Sd = B           (F=11, ENA=0, ENB=1, INVA=0, INC=0
 ULA_A_MAIS_B= '00111100'   # Sd = A + B       (F=11, ENA=1, ENB=1, INVA=0, INC=0)
 ULA_B_MAIS_1= '00110101'   # Sd = B + 1       (F=11, ENA=0, ENB=1, INVA=0, INC=1)
                             #   → ENA=0 → a_in=0, INC=1 → carry_in=1, logo Sd = B+1
+ULA_H_MAIS_1= '00111001'   # Sd = H + 1
 ULA_A       = '00111000'   # Sd = A           (F=11, ENA=1, ENB=0, INVA=0, INC=0)
                             #   → B_in=0, logo Sd=A+0=A
 
 
-def traduzir_iload(x: int, estado_regs: Registradores, memoria: MemoriaDados) -> list:
+def traduzir_iload(x: int) -> list:
     """
     Traduz ILOAD x para lista de microinstruções de 23 bits.
     Sequência:
@@ -533,7 +534,7 @@ def traduzir_iload(x: int, estado_regs: Registradores, memoria: MemoriaDados) ->
     for _ in range(x):
         # Sd = A + 1  →  ENA=1, ENB=0, INC=1 →  Sd = H + 0 + 1 = H+1
         micro.append(_microinstr(
-            '00111001',          # F=11, ENA=1, ENB=0, INVA=0, INC=1
+            ULA_H_MAIS_1,
             _ctrl_c_de_lista(['H']),
             '00',
             _ctrl_b_de_nome('MDR')  # B não importa (ENB=0)
@@ -665,7 +666,7 @@ class SimuladorIJVM:
 
             # Traduz para microinstruções
             if opcode == 'ILOAD':
-                micro_list = traduzir_iload(arg, self.maquina.regs, self.maquina.memoria)
+                micro_list = traduzir_iload(arg)
             elif opcode == 'DUP':
                 micro_list = traduzir_dup()
             elif opcode == 'BIPUSH':
