@@ -1,12 +1,4 @@
-# programa_etapa1.txt
-# Formato: <ctrl_6bits> <A_decimal> <B_decimal>
-# Cada linha = uma instrução para a ULA de 6 bits
-# F0 F1 ENA ENB INVA INC
-111100 1 1
-111100 5 3
-110000 5 3
-110100 5 3
-110010 7 0
-001111 0 4
-111101 3 2
-001100 0 7
+111110
+110101
+110100
+011100
