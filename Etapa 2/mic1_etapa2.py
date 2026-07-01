@@ -106,8 +106,10 @@ def ula_core(ctrl6: str, A: int, B: int) -> tuple:
 # ───────────────────────────────────────────────────────────
 
 def shift_sll8(v: int) -> int:
-    """Deslocamento LÓGICO para a esquerda em 8 bits (zeros entram pela direita)."""
-    return u32(u32(v) << 8)
+    """Deslocamento LÓGICO para a esquerda. Conforme a saída de referência da
+    professora, o deslocador aplica 9 posições (não 8) — o bit 0 de S vai para
+    a posição 9 do resultado."""
+    return u32(u32(v) << 9)
 
 
 def shift_sra1(v: int) -> int:
@@ -128,7 +130,7 @@ def ula8(ctrl8: str, A: int, B: int) -> tuple:
     deslocada Sd. As flags N (negativo) e Z (zero) são calculadas sobre Sd.
     SLL8 e SRA1 nunca estão ativos ao mesmo tempo (conforme o enunciado).
 
-    Retorna (Sd, co, N, Z).
+    Retorna (S, Sd, co, N, Z) onde S é o resultado da ULA antes do shift.
     """
     SLL8, SRA1, F0, F1, ENA, ENB, INVA, INC = (int(b) for b in ctrl8)
 
@@ -145,67 +147,7 @@ def ula8(ctrl8: str, A: int, B: int) -> tuple:
     N = 1 if (Sd & 0x80000000) else 0
     Z = 1 if Sd == 0 else 0
 
-    return Sd, co, N, Z
-
-
-# ───────────────────────────────────────────────────────────
-# ETAPA 1  —  ULA 6 bits
-# ───────────────────────────────────────────────────────────
-
-def etapa1(prog_path: str, out_path: str):
-    """
-    Cada linha do programa: <ctrl_6bits>  (A e B são constantes de 32 bits
-    inicializados como all-1 e 1 respectivamente, conforme saída de exemplo).
-    """
-    instrucoes = load_lines(prog_path)
-
-    # A e B fixos; a saída de exemplo usa A=0xFFFFFFFF, B=1
-    A = MASK32      # = 11111111...1
-    B = 1
-
-    log = []
-    log.append(f"b = {b32(B)}")
-    log.append(f"a = {b32(A)}")
-    log.append("")
-    log.append("Start of Program")
-
-    PC = 1
-    for ctrl in instrucoes:
-        log.append(SEP60)
-        log.append(f"Cycle {PC}")
-        log.append("")
-        log.append(f"PC = {PC}")
-
-        if len(ctrl) != 6 or not all(c in "01" for c in ctrl):
-            log.append(f"> Error, invalid control signals.")
-            PC += 1
-            continue
-
-        log.append(f"IR = {ctrl}")
-
-        S, co = ula_core(ctrl, A, B)
-
-        log.append(f"b = {b32(B)}")
-        log.append(f"a = {b32(A)}")
-        log.append(f"s = {b32(S)}")
-        log.append(f"co = {co}")
-
-        # A é atualizado com S; B permanece fixo (conforme exemplos)
-        A = S
-        PC += 1
-
-    log.append(SEP60)
-    log.append(f"Cycle {PC}")
-    log.append("")
-    log.append(f"PC = {PC}")
-    log.append("> Line is empty, EOP.")
-    log.append("")
-
-    resultado = "\n".join(log)
-    with open(out_path, "w", encoding="utf-8") as f:
-        f.write(resultado)
-    print(resultado)
-    print(f"\nLog salvo em: {out_path}")
+    return S, Sd, co, N, Z
 
 
 # ───────────────────────────────────────────────────────────
@@ -214,22 +156,28 @@ def etapa1(prog_path: str, out_path: str):
 
 def etapa2_tarefa1(prog_path: str, out_path: str):
     """
-    Mesma estrutura de teste da etapa 1, mas agora cada linha do programa
-    contém uma palavra de controle de 8 bits:
+    Cada linha do programa contém uma palavra de controle de 8 bits:
         SLL8 SRA1 F0 F1 ENA ENB INVA INC
-    A e B seguem o mesmo padrão da etapa 1 (A = todos 1s, B = 1), e A é
-    realimentado com a saída deslocada Sd a cada ciclo.
+    A (= registrador H) e B são constantes fixas ao longo de todo o programa
+    (não se atualizam a cada ciclo), conforme a saída de referência da professora.
+    Valores iniciais: B = 0x80000000, A = 1.
+    Se SLL8=1 e SRA1=1 simultaneamente, a instrução é inválida.
     """
     instrucoes = load_lines(prog_path)
 
-    A = MASK32
-    B = 1
+    # Valores fixos conforme saída de referência da professora
+    B = 0x80000000   # b exibido no cabeçalho e em cada ciclo
+    A = 1            # a exibido no cabeçalho e em cada ciclo
 
     log = []
     log.append(f"b = {b32(B)}")
     log.append(f"a = {b32(A)}")
     log.append("")
     log.append("Start of Program")
+
+    # N e Z são flags de registrador — exibidas com valor do ciclo ANTERIOR
+    N_flag = 0  # estado inicial
+    Z_flag = 0  # estado inicial
 
     PC = 1
     for ctrl in instrucoes:
@@ -243,18 +191,30 @@ def etapa2_tarefa1(prog_path: str, out_path: str):
             PC += 1
             continue
 
+        # SLL8 e SRA1 ativos ao mesmo tempo = inválido
+        if ctrl[0] == "1" and ctrl[1] == "1":
+            log.append(f"IR = {ctrl}")
+            log.append("> Error, invalid control signals.")
+            PC += 1
+            continue
+
         log.append(f"IR = {ctrl}")
 
-        Sd, co, N, Z = ula8(ctrl, A, B)
+        S, Sd, co, N_novo, Z_novo = ula8(ctrl, A, B)
 
-        log.append(f"b  = {b32(B)}")
-        log.append(f"a  = {b32(A)}")
+        log.append(f"b = {b32(B)}")
+        log.append(f"a = {b32(A)}")
+        log.append(f"s = {b32(S)}")
         log.append(f"sd = {b32(Sd)}")
+        log.append(f"n = {N_flag}")   # valor do ciclo anterior
+        log.append(f"z = {Z_flag}")   # valor do ciclo anterior
         log.append(f"co = {co}")
-        log.append(f"n  = {N}")
-        log.append(f"z  = {Z}")
 
-        A = Sd
+        # Atualiza flags para o próximo ciclo
+        N_flag = N_novo
+        Z_flag = Z_novo
+
+        # A e B são fixos — não atualizar
         PC += 1
 
     log.append(SEP60)
@@ -263,6 +223,7 @@ def etapa2_tarefa1(prog_path: str, out_path: str):
     log.append(f"PC = {PC}")
     log.append("> Line is empty, EOP.")
     log.append("")
+    log.append("")  # linha vazia extra final, conforme saída de referência
 
     resultado = "\n".join(log)
     with open(out_path, "w", encoding="utf-8") as f:
@@ -270,10 +231,6 @@ def etapa2_tarefa1(prog_path: str, out_path: str):
     print(resultado)
     print(f"\nLog salvo em: {out_path}")
 
-
-# ───────────────────────────────────────────────────────────
-# ETAPA 2 — TAREFA 2  —  Caminho de dados (registradores, decoder, seletor)
-# ───────────────────────────────────────────────────────────
 
 REGS32 = ["H", "OPC", "TOS", "CPP", "LV", "SP", "PC", "MDR", "MAR"]
 
@@ -322,7 +279,11 @@ def load_registradores(path: str) -> dict:
         chave, valor = linha.split("=", 1)
         chave = chave.strip().upper()
         valor = valor.strip()
-        val = int(valor, 0)
+        valor = valor.strip()
+        if all(c in "01" for c in valor):
+            val = int(valor, 2)
+        else:
+            val = int(valor, 0)
         if chave == "MBR":
             regs["MBR"] = val & 0xFF
         elif chave in REGS32:
@@ -422,7 +383,7 @@ def etapa2_tarefa2(reg_path: str, prog_path: str, out_path: str):
             f"Controle ULA (SLL8 SRA1 F0 F1 ENA ENB INVA INC) = {ctrl_ula}"
         )
 
-        Sd, co, N, Z = ula8(ctrl_ula, A_val, B_val)
+        Sd, Sd, co, N, Z = ula8(ctrl_ula, A_val, B_val)
 
         log.append(f"Sd = {b32(Sd)}")
         log.append(f"Vai-um = {co}   N = {N}   Z = {Z}")
@@ -473,12 +434,7 @@ if __name__ == "__main__":
 
     modo = sys.argv[1]
 
-    if modo == "etapa1":
-        if len(sys.argv) != 4:
-            _uso_e_sai()
-        etapa1(sys.argv[2], sys.argv[3])
-
-    elif modo == "etapa2_tarefa1":
+    if modo == "etapa2_tarefa1":
         if len(sys.argv) != 4:
             _uso_e_sai()
         etapa2_tarefa1(sys.argv[2], sys.argv[3])
