@@ -1,0 +1,9 @@
+# Memória de dados — 8 endereços (0..7), um valor de 32 bits por linha
+0
+0
+0
+0
+0
+0
+0
+0

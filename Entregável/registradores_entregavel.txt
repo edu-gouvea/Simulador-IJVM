@@ -1,0 +1,13 @@
+# Estado inicial dos registradores
+# LV = base do quadro de variáveis locais (endereço 2)
+# SP = topo da pilha (endereço 4, pilha cresce para cima)
+H=0
+OPC=0
+TOS=0
+CPP=0
+LV=2
+SP=4
+PC=0
+MDR=0
+MAR=0
+MBR=0

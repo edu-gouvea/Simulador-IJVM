@@ -1,0 +1,11 @@
+# Memória de dados — 8 endereços (0..7)
+# Endereço 2 = LV (base do quadro de variáveis locais)
+# Endereço 3 = LV+1 = variável local 1, valor 42
+0
+0
+0
+42
+0
+0
+0
+0

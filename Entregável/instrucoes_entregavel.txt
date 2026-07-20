@@ -1,0 +1,4 @@
+# Instruções da ISA da IJVM
+ILOAD 1
+DUP
+BIPUSH 00010100
